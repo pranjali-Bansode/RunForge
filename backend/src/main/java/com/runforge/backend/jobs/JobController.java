@@ -30,6 +30,10 @@ public class JobController {
         return jobService.getJob(id);
     }
 
+    @GetMapping
+public java.util.List<JobResponse> getAllJobs() {
+    return jobService.getAllJobs();
+}
     
 @PatchMapping("/{id}/status")
 public JobResponse updateStatus(
