@@ -1,8 +1,11 @@
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import EmailTaskForm from "../components/EmailTaskForm";
 import Jobs from "../components/Jobs";
 import DashboardNavbar from "../components/DashboardNavbar";
+import TaskSelector from "../components/TaskSelector";
+import DocumentTaskForm from "../components/DocumentTaskForm";
+import PresentationTaskForm from "../components/PresentationTaskForm";
 
 import {
   Activity,
@@ -45,6 +48,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+
+// Backend API
+const API_URL = "http://localhost:8081/api/jobs";
 
 // Static demonstration data
 const stats = [
@@ -461,11 +467,43 @@ function ExecutionTime() {
   );
 }
 
-
 export default function Dashboard() {
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [activeTab, setActiveTab] = useState("Metrics");
   const [jobs, setJobs] = useState([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobsError, setJobsError] = useState("");
+  const [showTaskSelector, setShowTaskSelector] = useState(false);
+  const [showDocumentForm, setShowDocumentForm] = useState(false);
+  const [showPresentationForm, setShowPresentationForm] = useState(false);
+  // Fetch jobs from Spring Boot backend
+  const fetchJobs = useCallback(async () => {
+    setJobsLoading(true);
+    setJobsError("");
+
+    try {
+      const response = await fetch(API_URL);
+
+      if (!response.ok) {
+        throw new Error("Unable to fetch jobs from the server.");
+      }
+
+      const data = await response.json();
+
+      setJobs(Array.isArray(data) ? data : data ? [data] : []);
+    } catch (error) {
+      setJobsError(
+        error.message || "Unable to connect to RunForge backend."
+      );
+    } finally {
+      setJobsLoading(false);
+    }
+  }, []);
+
+  // Load jobs when dashboard opens
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
 
   return (
     <div className="min-h-screen bg-[#0D1020] text-slate-100 flex">
@@ -496,7 +534,7 @@ export default function Dashboard() {
               </div>
 
               <button
-                onClick={() => setShowEmailForm(true)}
+                onClick={() => setShowTaskSelector(true)}
                 className="flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-950/30 transition"
               >
                 <Plus size={18} />
@@ -534,7 +572,27 @@ export default function Dashboard() {
 
           {/* Jobs Page */}
           {activeTab === "Jobs" && (
-            <Jobs jobs={jobs} />
+            <>
+              {jobsLoading && (
+                <p className="text-sm text-violet-400">
+                  Loading jobs from PostgreSQL...
+                </p>
+              )}
+
+              {jobsError && (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
+                  {jobsError}
+                  <button
+                    onClick={fetchJobs}
+                    className="ml-3 underline"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              <Jobs jobs={jobs} />
+            </>
           )}
 
           {/* Schedulers Page */}
@@ -569,19 +627,83 @@ export default function Dashboard() {
         </div>
       </main>
 
+
+      {/* Task Selector */}
+      {showTaskSelector && (
+        <TaskSelector
+          onClose={() => setShowTaskSelector(false)}
+          onSelect={(taskType) => {
+  setShowTaskSelector(false);
+
+  if (taskType === "email") {
+    setShowEmailForm(true);
+  } else if (taskType === "document") {
+    setShowDocumentForm(true);
+  } else if (taskType === "presentation") {
+    setShowPresentationForm(true);
+  }
+}}
+        />
+      )}
+
+      {/* Document Task Form */}
+      {showDocumentForm && (
+        <DocumentTaskForm
+          onClose={() => setShowDocumentForm(false)}
+          onTaskCreated={async (job) => {
+            console.log("Document task added:", job);
+
+            setJobs((previousJobs) => [
+              job,
+              ...previousJobs.filter(
+                (existingJob) => existingJob.id !== job.id
+              ),
+            ]);
+
+            setActiveTab("Jobs");
+            await fetchJobs();
+          }}
+        />
+      )}
+
       {/* Email Task Form */}
       {showEmailForm && (
         <EmailTaskForm
           onClose={() => setShowEmailForm(false)}
-          onTaskCreated={(job) => {
+          onTaskCreated={async (job) => {
             console.log("Job added to RunForge:", job);
 
-            setJobs((previousJobs) => [job, ...previousJobs]);
+            setJobs((previousJobs) => [
+              job,
+              ...previousJobs.filter(
+                (existingJob) => existingJob.id !== job.id
+              ),
+            ]);
 
             setActiveTab("Jobs");
+            await fetchJobs();
           }}
         />
       )}
+      {/* Presentation Task Form */}
+{showPresentationForm && (
+  <PresentationTaskForm
+    onClose={() => setShowPresentationForm(false)}
+    onTaskCreated={async (job) => {
+      console.log("Presentation task added:", job);
+
+      setJobs((previousJobs) => [
+        job,
+        ...previousJobs.filter(
+          (existingJob) => existingJob.id !== job.id
+        ),
+      ]);
+
+      setActiveTab("Jobs");
+      await fetchJobs();
+    }}
+  />
+)}
     </div>
   );
 }

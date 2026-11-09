@@ -1,5 +1,62 @@
 
-import { BriefcaseBusiness, Clock3, CheckCircle2, CircleAlert } from "lucide-react";
+import {
+  BriefcaseBusiness,
+  Clock3,
+  CheckCircle2,
+  CircleAlert,
+} from "lucide-react";
+
+function getJobPayload(job) {
+  if (!job?.payload) return {};
+
+  // Support both object and JSON-string payloads.
+  if (typeof job.payload === "string") {
+    try {
+      return JSON.parse(job.payload);
+    } catch {
+      return {};
+    }
+  }
+
+  return job.payload;
+}
+
+function getJobDetails(job) {
+  const payload = getJobPayload(job);
+  const type = (job.type || "").toUpperCase();
+
+  let title =
+    job.title ||
+    job.taskName ||
+    job.name ||
+    payload.title ||
+    payload.subject ||
+    "";
+
+  let typeLabel = "Custom Task";
+
+  switch (type) {
+    case "SEND_EMAIL":
+      typeLabel = "Email Writing";
+      title = title || "Email Task";
+      break;
+
+    case "GENERATE_DOCUMENT":
+      typeLabel = "Document Writing";
+      title = title || "Document Task";
+      break;
+
+    case "GENERATE_PRESENTATION":
+      typeLabel = "Presentation Creation";
+      title = title || "Presentation Task";
+      break;
+
+    default:
+      title = title || "Untitled Job";
+  }
+
+  return { title, typeLabel };
+}
 
 export default function Jobs({ jobs = [] }) {
   const statusStyles = {
@@ -18,7 +75,6 @@ export default function Jobs({ jobs = [] }) {
 
   return (
     <div className="space-y-6">
-
       <div>
         <h2 className="text-2xl font-bold">Jobs</h2>
         <p className="text-sm text-slate-400 mt-1">
@@ -26,8 +82,8 @@ export default function Jobs({ jobs = [] }) {
         </p>
       </div>
 
+      {/* Job Statistics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
         <div className="rounded-xl border border-[#292D49] bg-[#191D32] p-5">
           <p className="text-sm text-slate-400">Total Jobs</p>
           <p className="text-3xl font-bold mt-2">{jobs.length}</p>
@@ -36,21 +92,24 @@ export default function Jobs({ jobs = [] }) {
         <div className="rounded-xl border border-[#292D49] bg-[#191D32] p-5">
           <p className="text-sm text-slate-400">Queued</p>
           <p className="text-3xl font-bold text-yellow-400 mt-2">
-            {jobs.filter(job => job.status?.toUpperCase() === "QUEUED").length}
+            {jobs.filter(
+              (job) => job.status?.toUpperCase() === "QUEUED"
+            ).length}
           </p>
         </div>
 
         <div className="rounded-xl border border-[#292D49] bg-[#191D32] p-5">
           <p className="text-sm text-slate-400">Completed</p>
           <p className="text-3xl font-bold text-green-400 mt-2">
-            {jobs.filter(job => job.status?.toUpperCase() === "COMPLETED").length}
+            {jobs.filter(
+              (job) => job.status?.toUpperCase() === "COMPLETED"
+            ).length}
           </p>
         </div>
-
       </div>
 
+      {/* All Jobs Table */}
       <div className="rounded-2xl border border-[#292D49] bg-[#191D32] overflow-hidden">
-
         <div className="p-5 border-b border-[#292D49]">
           <h3 className="font-semibold flex items-center gap-2">
             <BriefcaseBusiness size={19} className="text-violet-400" />
@@ -85,27 +144,41 @@ export default function Jobs({ jobs = [] }) {
                 {jobs.map((job, index) => {
                   const status = job.status?.toUpperCase() || "QUEUED";
                   const StatusIcon = statusIcons[status] || Clock3;
+                  const { title, typeLabel } = getJobDetails(job);
 
                   return (
                     <tr
                       key={job.id || job.jobId || index}
                       className="border-t border-[#292D49] hover:bg-white/[0.02]"
                     >
-                      <td className="px-5 py-4 text-slate-200 font-medium">
-                        {job.title || job.taskName || job.name || "Untitled Job"}
+                      {/* Job Name and Type */}
+                      <td className="px-5 py-4">
+                        <p className="text-slate-200 font-medium">
+                          {title}
+                        </p>
+                        <p className="text-xs text-violet-400 mt-1">
+                          {typeLabel}
+                        </p>
                       </td>
 
+                      {/* Job ID */}
                       <td className="px-5 py-4 text-slate-400">
                         {job.id || job.jobId || `JOB-${index + 1}`}
                       </td>
 
+                      {/* Status */}
                       <td className="px-5 py-4">
-                        <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[status] || statusStyles.QUEUED}`}>
+                        <span
+                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${
+                            statusStyles[status] || statusStyles.QUEUED
+                          }`}
+                        >
                           <StatusIcon size={13} />
                           {status}
                         </span>
                       </td>
 
+                      {/* Created At */}
                       <td className="px-5 py-4 text-slate-400">
                         {job.createdAt
                           ? new Date(job.createdAt).toLocaleString()
@@ -118,7 +191,6 @@ export default function Jobs({ jobs = [] }) {
             </table>
           </div>
         )}
-
       </div>
     </div>
   );
